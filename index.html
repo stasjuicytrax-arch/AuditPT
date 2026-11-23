@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#151515">
+  <title>Аудит продаж · Party Time</title>
+  <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#overview">К содержанию</a>
+  <div class="site-grain" aria-hidden="true"></div>
+
+  <header class="masthead">
+    <div class="masthead-inner frame">
+      <a class="brand" href="#overview" aria-label="Party Time — к сводке">
+        <img src="assets/logo.svg" alt="Party Time" width="122" height="46">
+      </a>
+      <nav class="navigation" aria-label="Разделы панели">
+        <a href="#overview">Сводка</a>
+        <a href="#cases">Разбор сделок</a>
+      </nav>
+      <span class="demo-indicator">Демо-данные</span>
+    </div>
+  </header>
+
+  <main class="frame dashboard" id="overview" tabindex="-1">
+    <div class="title-row">
+      <div class="title-copy">
+        <h1>Аудит продаж</h1>
+        <p id="finding" class="finding" aria-live="polite">Причины отказов и путь от заявки до брони.</p>
+      </div>
+      <form id="filters" class="filters" aria-label="Фильтры отчёта">
+        <label class="select-field">
+          <span>Период</span>
+          <select id="period" name="period">
+            <option value="all">Весь период</option>
+            <option value="recent">Последние 7 дней</option>
+            <option value="previous">Предыдущие 7 дней</option>
+          </select>
+        </label>
+        <label class="select-field">
+          <span>Локация</span>
+          <select id="location" name="location">
+            <option value="all">Все локации</option>
+          </select>
+        </label>
+      </form>
+    </div>
+
+    <noscript><p class="notice">Включите JavaScript, чтобы открыть графики и примеры сделок.</p></noscript>
+
+    <dl class="metrics" aria-label="Итоги выбранного периода">
+      <div class="metric"><dt>Всего заявок</dt><dd id="count-total">—</dd></div>
+      <div class="metric"><dt>Подтверждённые брони</dt><dd id="count-booked">—</dd></div>
+      <div class="metric metric-focus"><dt>Закрыто без брони</dt><dd id="count-lost">—</dd></div>
+      <div class="metric"><dt>Доля броней от заявок</dt><dd id="booking-rate">—</dd></div>
+    </dl>
+
+    <div class="chart-grid">
+      <section class="panel reasons-panel" aria-labelledby="reasons-title">
+        <header class="panel-heading">
+          <h2 id="reasons-title">Причины отказов</h2>
+          <span class="panel-note" id="reasons-count"></span>
+        </header>
+        <ol id="reason-chart" class="reason-chart"></ol>
+        <p id="reason-empty" class="empty" hidden>За этот период закрытых без брони заявок нет.</p>
+      </section>
+
+      <section class="panel funnel-panel" aria-labelledby="funnel-title">
+        <header class="panel-heading">
+          <h2 id="funnel-title">Воронка до брони</h2>
+        </header>
+        <ol id="funnel-chart" class="funnel-chart"></ol>
+        <p class="chart-note">Сколько заявок дошло до каждого этапа. Этапы демонстрационные.</p>
+      </section>
+    </div>
+
+    <section class="panel case-panel" id="cases" aria-labelledby="cases-title" tabindex="-1">
+      <header class="panel-heading cases-heading">
+        <div>
+          <h2 id="cases-title" tabindex="-1">Сделки на разбор</h2>
+          <p id="case-summary" class="chart-note" aria-live="polite">Закрытые без брони заявки</p>
+        </div>
+        <button type="button" id="reset-reason" class="button button-quiet" hidden>Сбросить причину</button>
+      </header>
+      <div id="case-labels" class="case-labels" aria-hidden="true">
+        <span>Заявка</span><span>Локация</span><span>Причина по аудиту</span><span>Диалог</span>
+      </div>
+      <ul id="case-list" class="case-list"></ul>
+      <p id="case-empty" class="empty" hidden>Под выбранные фильтры сделки не найдены.</p>
+      <div class="pagination" id="pagination" hidden>
+        <button id="page-prev" type="button" class="button button-quiet">Назад</button>
+        <p id="page-status" aria-live="polite"></p>
+        <button id="page-next" type="button" class="button button-quiet">Дальше</button>
+      </div>
+    </section>
+
+    <section class="panel trend-panel" aria-labelledby="trend-title">
+      <header class="panel-heading trend-heading">
+        <div>
+          <h2 id="trend-title">Динамика заявок</h2>
+          <p class="chart-note">По дате обращения, в выбранной локации</p>
+        </div>
+        <ul class="legend" aria-label="Легенда">
+          <li><span class="legend-sample" aria-hidden="true"></span>Все заявки</li>
+          <li><span class="legend-sample legend-sample-lost" aria-hidden="true"></span>Без брони</li>
+        </ul>
+      </header>
+      <ol id="trend-chart" class="trend-chart"></ol>
+    </section>
+
+    <footer class="footer">
+      <span>Party Time</span>
+      <span>Демонстрационный отчёт · Битрикс24 не подключён</span>
+    </footer>
+  </main>
+
+  <dialog id="case-dialog" class="case-dialog" aria-labelledby="dialog-title">
+    <div class="dialog-heading">
+      <div>
+        <h2 id="dialog-title"></h2>
+        <p id="dialog-meta" class="chart-note"></p>
+      </div>
+      <form method="dialog"><button class="button button-quiet" autofocus>Закрыть</button></form>
+    </div>
+    <p id="dialog-summary" class="dialog-summary"></p>
+    <dl class="dialog-facts">
+      <div><dt>Причина в CRM</dt><dd id="dialog-crm"></dd></div>
+      <div><dt>Причина по аудиту</dt><dd id="dialog-reason"></dd></div>
+      <div><dt>Последний этап</dt><dd id="dialog-stage"></dd></div>
+      <div><dt>Время до контакта</dt><dd id="dialog-contact"></dd></div>
+    </dl>
+    <section class="dialog-section" aria-labelledby="evidence-title">
+      <h3 id="evidence-title">Фрагмент демо-диалога</h3>
+      <blockquote id="dialog-evidence"></blockquote>
+      <p id="dialog-no-evidence" class="chart-note" hidden>В примере нет фрагмента разговора.</p>
+    </section>
+    <section class="dialog-section" aria-labelledby="assessment-title">
+      <h3 id="assessment-title">Что проверить</h3>
+      <p id="dialog-assessment"></p>
+    </section>
+    <section class="dialog-section dialog-script" id="dialog-script-section" aria-labelledby="script-title">
+      <h3 id="script-title">Как можно ответить</h3>
+      <p id="dialog-script"></p>
+    </section>
+  </dialog>
+</body>
+</html>
