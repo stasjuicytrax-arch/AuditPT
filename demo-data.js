@@ -1,4 +1,12 @@
+export const demoStart = '2026-08-23';
 export const demoEnd = '2026-11-22';
+
+export const demoMonths = [
+  { id: 'november', label: 'Ноябрь · по 22-е', start: '2026-11-01', end: demoEnd },
+  { id: 'october', label: 'Октябрь', start: '2026-10-01', end: '2026-10-31' },
+  { id: 'september', label: 'Сентябрь', start: '2026-09-01', end: '2026-09-30' },
+  { id: 'august', label: 'Август · с 23-го', start: demoStart, end: '2026-08-31' },
+];
 
 export const locations = [
   { id: 'dumskaya', label: 'Думская' },
@@ -37,36 +45,49 @@ const examples = {
 const accepted = { crmReason: '', summary: 'Гость согласовал время и подтвердил бронирование.', evidence: 'Это время подходит, готовы бронировать.', assessment: 'Бронирование подтверждено в демонстрационной карточке.' };
 const awaiting = { crmReason: '', summary: 'Пока нет подтверждённого решения гостя.', evidence: '', assessment: 'Заявка остаётся в работе. Итог ещё неизвестен.' };
 
-const days = [
-  ['09', 'offer:price', 'booking', 'request:silent', 'request'],
-  ['10', 'booking', 'offer:time', 'contact:location', 'offer'],
-  ['11', 'offer:price', 'booking', 'offer:deposit'],
-  ['12', 'offer:capacity', 'contact', 'booking', 'offer:price', 'offer:unknown'],
-  ['13', 'offer:time', 'booking', 'offer', 'request:silent', 'offer:price'],
-  ['14', 'booking', 'offer:price', 'offer:time', 'booking', 'offer:deposit', 'contact'],
-  ['15', 'offer:time', 'offer:unknown', 'booking', 'offer:capacity', 'request:silent'],
-  ['16', 'offer:price', 'booking', 'contact:location', 'offer'],
-  ['17', 'offer:deposit', 'offer:price', 'booking', 'offer:time', 'request'],
-  ['18', 'booking', 'offer:capacity', 'offer:price', 'offer'],
-  ['19', 'offer:price', 'offer:time', 'booking', 'request:silent', 'contact:location'],
-  ['20', 'booking', 'offer:time', 'offer:deposit', 'booking', 'offer:price', 'offer:unknown'],
-  ['21', 'offer:time', 'booking', 'offer:price', 'request:silent', 'booking', 'offer:capacity'],
-  ['22', 'offer:price', 'offer:time', 'booking', 'offer:deposit', 'request:silent', 'offer:unknown', 'offer'],
+const dayTemplates = [
+  ['offer:price', 'booking', 'request:silent', 'request'],
+  ['booking', 'offer:time', 'contact:location', 'offer'],
+  ['offer:price', 'booking', 'offer:deposit'],
+  ['offer:capacity', 'contact', 'booking', 'offer:price', 'offer:unknown'],
+  ['offer:time', 'booking', 'offer', 'request:silent', 'offer:price'],
+  ['booking', 'offer:price', 'offer:time', 'booking', 'offer:deposit', 'contact'],
+  ['offer:time', 'offer:unknown', 'booking', 'offer:capacity', 'request:silent'],
+  ['offer:price', 'booking', 'contact:location', 'offer'],
+  ['offer:deposit', 'offer:price', 'booking', 'offer:time', 'request'],
+  ['booking', 'offer:capacity', 'offer:price', 'offer'],
+  ['offer:price', 'offer:time', 'booking', 'request:silent', 'contact:location'],
+  ['booking', 'offer:time', 'offer:deposit', 'booking', 'offer:price', 'offer:unknown'],
+  ['offer:time', 'booking', 'offer:price', 'request:silent', 'booking', 'offer:capacity'],
+  ['offer:price', 'offer:time', 'booking', 'offer:deposit', 'request:silent', 'offer:unknown', 'offer'],
 ];
 
-export const cases = days.flatMap(([day, ...items], index) => items.map((item, slot) => {
-  const [stage, reason = ''] = item.split(':');
-  const outcome = stage === 'booking' ? 'booked' : reason ? 'lost' : 'open';
-  const example = reason ? examples[reason] : outcome === 'booked' ? accepted : awaiting;
+const dayMs = 24 * 60 * 60 * 1000;
+const startMs = Date.parse(demoStart);
+const totalDays = (Date.parse(demoEnd) - startMs) / dayMs + 1;
 
-  return {
-    id: `PT-${1050 + index * 10 + slot}`,
-    date: `2026-11-${day}`,
-    location: locations[(index * 3 + slot) % locations.length].id,
-    stage,
-    outcome,
-    reason,
-    contactMinutes: stage === 'request' || reason === 'silent' ? null : 2 + (index * 11 + slot * 4) % 23,
-    ...example,
-  };
-}));
+export const cases = Array.from({ length: totalDays }, (_, dayIndex) => {
+  const date = new Date(startMs + dayIndex * dayMs).toISOString().slice(0, 10);
+  const recentIndex = dayIndex - (totalDays - dayTemplates.length);
+  const templateIndex = (recentIndex % dayTemplates.length + dayTemplates.length) % dayTemplates.length;
+  const template = dayTemplates[templateIndex];
+  const items = recentIndex < 0 && dayIndex % 6 === 0 ? template.slice(1) : template;
+  const index = recentIndex < 0 ? dayIndex + 100 : recentIndex;
+
+  return items.map((item, slot) => {
+    const [stage, reason = ''] = item.split(':');
+    const outcome = stage === 'booking' ? 'booked' : reason ? 'lost' : 'open';
+    const example = reason ? examples[reason] : outcome === 'booked' ? accepted : awaiting;
+
+    return {
+      id: `PT-${1050 + index * 10 + slot}`,
+      date,
+      location: locations[(index * 3 + slot) % locations.length].id,
+      stage,
+      outcome,
+      reason,
+      contactMinutes: stage === 'request' || reason === 'silent' ? null : 2 + (index * 11 + slot * 4) % 23,
+      ...example,
+    };
+  });
+}).flat();

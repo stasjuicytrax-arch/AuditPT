@@ -1,10 +1,10 @@
-import { cases, demoEnd, locations, reasons, stages } from './demo-data.js';
+import { cases, demoEnd, demoMonths, demoStart, locations, reasons, stages } from './demo-data.js';
 
 const number = new Intl.NumberFormat('ru-RU');
 const percentage = new Intl.NumberFormat('ru-RU', { style: 'percent', maximumFractionDigits: 1 });
 const dateFormat = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+const monthFormat = new Intl.DateTimeFormat('ru-RU', { month: 'short', timeZone: 'UTC' });
 const listLimit = 6;
-const firstDay = cases.reduce((earliest, entry) => entry.date < earliest ? entry.date : earliest, demoEnd);
 const stageOrder = new Map(stages.map(({ id }, index) => [id, index]));
 const locationsById = new Map(locations.map(location => [location.id, location.label]));
 const reasonsById = new Map(reasons.map(reason => [reason.id, reason]));
@@ -46,10 +46,12 @@ function printDay(day) {
 }
 
 function periodBounds() {
+  const month = demoMonths.find(({ id }) => id === period.value);
+  if (month) return [month.start, month.end];
   switch (period.value) {
     case 'recent': return [shiftDay(demoEnd, -6), demoEnd];
     case 'previous': return [shiftDay(demoEnd, -13), shiftDay(demoEnd, -7)];
-    default: return [firstDay, demoEnd];
+    default: return [demoStart, demoEnd];
   }
 }
 
@@ -115,25 +117,46 @@ function showTrend(records, start, end) {
     if (entry.outcome === 'lost') daily.lost += 1;
     counts.set(entry.date, daily);
   }
-  const days = [];
-  for (let day = start; day <= end; day = shiftDay(day, 1)) {
-    days.push({ day, ...(counts.get(day) ?? { total: 0, lost: 0 }) });
+  const byMonth = shiftDay(start, 31) <= end;
+  const byWeek = !byMonth && shiftDay(start, 13) < end;
+  const intervals = [];
+  let next = start;
+  while (next <= end) {
+    const first = next;
+    if (byMonth) {
+      const date = new Date(`${first.slice(0, 7)}-01T00:00:00Z`);
+      date.setUTCMonth(date.getUTCMonth() + 1);
+      next = date.toISOString().slice(0, 10);
+    } else {
+      next = shiftDay(first, byWeek ? 7 : 1);
+    }
+    const last = next > end ? end : shiftDay(next, -1);
+    let total = 0;
+    let lost = 0;
+    for (let day = first; day <= last; day = shiftDay(day, 1)) {
+      total += counts.get(day)?.total ?? 0;
+      lost += counts.get(day)?.lost ?? 0;
+    }
+    intervals.push({ first, last, total, lost });
   }
-  const maximum = Math.max(1, ...days.map(({ total }) => total));
-  trendChart.style.setProperty('--columns', days.length);
-  trendChart.replaceChildren(...days.map(({ day, total, lost }, index) => {
+  const grouping = byMonth ? 'По месяцам' : byWeek ? 'По неделям' : 'По дням';
+  setText('trend-note', `${grouping} · в выбранной локации`);
+  const maximum = Math.max(1, ...intervals.map(({ total }) => total));
+  trendChart.style.setProperty('--columns', intervals.length);
+  trendChart.replaceChildren(...intervals.map(({ first, last, total, lost }, index) => {
     const item = element('li', 'trend-day');
     const bars = element('span', 'trend-bars');
     const allBar = element('span', 'trend-bar');
     const lostBar = element('span', 'trend-bar trend-bar-lost');
-    const label = printDay(day);
-    const tickClass = index === 0 || index === days.length - 1 || index % 4 === 0 ? 'trend-tick' : 'trend-tick trend-tick-minor';
+    const label = first === last ? printDay(first) : `${printDay(first)} — ${printDay(last)}`;
+    const tickClass = intervals.length <= 7 || index === 0 || index === intervals.length - 1 || index % 4 === 0 ? 'trend-tick' : 'trend-tick trend-tick-minor';
     const context = `${label}. Всего заявок ${total}, закрыто без брони ${lost}.`;
     bars.setAttribute('aria-hidden', 'true');
     allBar.style.setProperty('--height', `${total / maximum * 100}%`);
     lostBar.style.setProperty('--height', `${lost / maximum * 100}%`);
     bars.append(allBar, lostBar);
-    const tick = element('span', tickClass, day.slice(-2));
+    const tickLabel = byMonth ? monthFormat.format(new Date(`${first}T00:00:00Z`)) : first.slice(-2);
+    const tick = element('span', tickClass, tickLabel);
     tick.setAttribute('aria-hidden', 'true');
     item.title = context;
     item.append(element('span', 'sr-only', context), bars, tick);
@@ -214,7 +237,7 @@ function showDashboard() {
   setText('count-booked', number.format(booked));
   setText('count-lost', number.format(closedCases.length));
   setText('booking-rate', records.length ? percentage.format(booked / records.length) : '—');
-  const dates = `${printDay(start)} — ${printDay(end)}`;
+  const dates = `${printDay(start)} — ${printDay(end)} ${end.slice(0, 4)}`;
   const finding = groups.length ? `Чаще всего в выборке: ${groups[0].label.toLocaleLowerCase('ru')} (${number.format(groups[0].count)}).` : 'Закрытых без брони заявок нет.';
   setText('finding', `${dates} · ${finding}`);
 
@@ -222,6 +245,12 @@ function showDashboard() {
   showFunnel(records);
   showCases();
   showTrend(records, start, end);
+}
+
+for (const month of demoMonths) {
+  const choice = element('option', '', month.label);
+  choice.value = month.id;
+  period.append(choice);
 }
 
 for (const branch of locations) {
